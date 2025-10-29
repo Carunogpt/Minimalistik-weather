@@ -1,0 +1,728 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Прогноз погоды</title>
+    <style>
+        :root {
+            --font-main: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+            --bg-color: #000000;
+            --text-primary: #ffffff;
+            --text-secondary: #888;
+            --text-muted: #555;
+            --border-color: #333;
+            --accent-color: #ffcc00;
+            --bg-level-1: #111;
+            --danger-color: #ff555;
+        }
+
+        body {
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            font-family: var(--font-main);
+            font-weight: 300;
+            margin: 0;
+            padding: 20px;
+            -webkit-font-smoothing: antialiased;
+            -moz-osx-font-smoothing: grayscale;
+        }
+
+        #app {
+            max-width: 900px;
+            margin: 20px auto;
+        }
+
+        h2 {
+            text-transform: uppercase;
+            letter-spacing: 3px;
+            font-weight: 400;
+            font-size: 1.1em;
+            color: var(--text-secondary);
+            margin: 0 0 15px 0;
+        }
+
+        #favorites-container {
+            display: none;
+            margin-bottom: 30px;
+        }
+
+        #favorite-city-card {
+            padding: 50px 40px;
+            border-top: 2px solid;
+            border-image: linear-gradient(to right, var(--text-primary), var(--border-color)) 1;
+        }
+
+        #add-city-container {
+            margin-bottom: 30px;
+            padding-bottom: 30px;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        #add-city-form {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        #city-name-input {
+            flex-grow: 1;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            padding: 12px;
+            font-family: var(--font-main);
+            font-size: 1em;
+            font-weight: 300;
+        }
+        #city-name-input::placeholder {
+            color: var(--text-muted);
+        }
+
+        #add-city-button {
+            background: transparent;
+            border: 1px solid var(--text-secondary);
+            color: var(--text-secondary);
+            padding: 12px 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 300;
+            transition: background 0.3s, color 0.3s;
+        }
+        #add-city-button:hover {
+            background: var(--text-primary);
+            color: var(--bg-color);
+            border-color: var(--text-primary);
+        }
+        #add-city-button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        #add-city-status {
+            font-size: 0.9em;
+            width: 100%;
+            margin-top: 10px;
+            color: var(--danger-color);
+            display: none;
+        }
+
+        #tabs-container {
+            border-bottom: 1px solid var(--border-color);
+            margin-bottom: 30px;
+            overflow-x: auto;
+            white-space: nowrap;
+            -webkit-overflow-scrolling: touch;
+        }
+
+        #tabs-scroll {
+            display: flex;
+        }
+
+        button.tab {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 15px 25px;
+            font-size: 0.9em;
+            font-weight: 400;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            cursor: pointer;
+            border-bottom: 2px solid transparent;
+            transition: color 0.3s, border-color 0.3s;
+            flex-shrink: 0;
+            display: flex;
+            align-items: center;
+        }
+
+        button.tab:hover {
+            color: var(--text-primary);
+        }
+
+        button.tab.active {
+            color: var(--text-primary);
+            border-bottom-color: var(--text-primary);
+        }
+
+        span.favorite-star {
+            cursor: pointer;
+            margin-right: 8px;
+            color: var(--text-muted);
+            transition: color 0.3s;
+            font-size: 1.2em;
+        }
+
+        span.favorite-star:hover {
+            color: var(--accent-color);
+        }
+
+        span.favorite-star.is-favorite {
+            color: var(--accent-color);
+        }
+        
+        span.delete-city {
+            font-size: 1.1em;
+            margin-left: 10px;
+            color: var(--text-muted);
+            cursor: pointer;
+            font-weight: 600;
+            padding: 2px 4px;
+        }
+        span.delete-city:hover {
+            color: var(--danger-color);
+        }
+
+        .weather-card {
+            display: none;
+            padding: 30px 20px;
+            border: 1px solid var(--border-color);
+        }
+
+        .weather-card.active {
+            display: block;
+        }
+
+        .weather-card .temp, #favorite-city-card .temp {
+            font-size: 4em;
+            font-weight: 200;
+            margin: 0;
+        }
+
+        #favorite-city-card .temp {
+            font-size: 5em;
+        }
+
+        .weather-card .weather-desc, #favorite-city-card .weather-desc {
+            font-size: 1.5em;
+            margin: 10px 0 25px 0;
+            font-weight: 300;
+            color: #ccc;
+        }
+
+        .weather-card .details, #favorite-city-card .details {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+
+        .weather-card .detail-item, #favorite-city-card .detail-item {
+            background: var(--bg-level-1);
+            padding: 15px;
+            border-left: 2px solid var(--border-color);
+        }
+
+        .weather-card .detail-item span, #favorite-city-card .detail-item span {
+            display: block;
+            color: var(--text-secondary);
+            font-size: 0.8em;
+            margin-bottom: 5px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        
+        .weather-card .detail-item strong, #favorite-city-card .detail-item strong {
+            font-size: 1.2em;
+            font-weight: 300;
+        }
+        
+        .forecast-container {
+            margin-top: 30px;
+            padding-top: 30px;
+            border-top: 1px solid var(--border-color);
+            display: flex;
+            gap: 10px;
+            overflow-x: auto;
+        }
+        
+        .forecast-day {
+            background: var(--bg-level-1);
+            padding: 15px;
+            text-align: center;
+            min-width: 80px;
+            flex-shrink: 0;
+        }
+        .forecast-day span {
+            display: block;
+        }
+        .forecast-day .day-name {
+            font-weight: 600;
+            text-transform: uppercase;
+            color: var(--text-secondary);
+        }
+        .forecast-day .day-icon {
+            font-size: 1.8em;
+            margin: 10px 0;
+        }
+        .forecast-day .day-temp-max {
+            font-weight: 400;
+            font-size: 1.1em;
+        }
+        .forecast-day .day-temp-min {
+            color: var(--text-secondary);
+            font-size: 1em;
+        }
+
+        #controls {
+            margin-top: 30px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        #refresh-button {
+            background: transparent;
+            border: 1px solid var(--text-muted);
+            color: var(--text-secondary);
+            padding: 10px 20px;
+            cursor: pointer;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            font-weight: 300;
+            transition: background 0.3s, color 0.3s;
+        }
+
+        #refresh-button:hover {
+            background: var(--text-primary);
+            color: var(--bg-color);
+        }
+
+        #loading-indicator {
+            display: none;
+            color: var(--text-secondary);
+            font-weight: 300;
+            animation: pulse 1.5s infinite;
+        }
+
+        #last-updated {
+            color: var(--text-muted);
+            font-size: 0.9em;
+            font-weight: 300;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.4; }
+        }
+
+        @media (max-width: 768px) {
+            body { padding: 15px; }
+            .weather-card .temp, #favorite-city-card .temp { font-size: 3em; }
+            #favorite-city-card { padding: 30px 20px; }
+            #favorite-city-card .temp { font-size: 4em; }
+            #tabs-container {
+                margin-left: -15px;
+                margin-right: -15px;
+                padding: 0 5px;
+            }
+            button.tab { padding: 15px; }
+            .weather-card .details, #favorite-city-card .details {
+                grid-template-columns: 1fr 1fr;
+            }
+            #add-city-form { flex-direction: column; }
+            #add-city-button { text-align: center; }
+        }
+    </style>
+</head>
+<body>
+
+    <div id="app">
+        <div id="favorites-container">
+            <h2>★ ИЗБРАННОЕ</h2>
+            <div id="favorite-city-card">
+                <h1 class="temp">--°</h1>
+                <p class="weather-desc">...</p>
+                <div class="details">
+                    <div class="detail-item">
+                        <span>Ощущается</span>
+                        <strong class="apparent_temperature">--°</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Влажность</span>
+                        <strong class="relative_humidity_2m">--%</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Ветер</span>
+                        <strong class="wind_speed_10m">-- м/с</strong>
+                    </div>
+                    <div class="detail-item">
+                        <span>Давление</span>
+                        <strong class="surface_pressure">-- мм рт.ст.</strong>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div id="add-city-container">
+            <h2>ДОБАВИТЬ ГОРОД</h2>
+            <form id="add-city-form">
+                <input type="text" id="city-name-input" placeholder="Например, Москва..." autocomplete="off">
+                <button type="submit" id="add-city-button">Добавить</button>
+            </form>
+            <span id="add-city-status"></span>
+        </div>
+
+        <div id="tabs-container">
+            <div id="tabs-scroll"></div>
+        </div>
+
+        <div id="weather-cards-container"></div>
+
+        <div id="controls">
+            <button id="refresh-button">Обновить</button>
+            <span id="loading-indicator">Загрузка...</span>
+            <span id="last-updated"></span>
+        </div>
+    </div>
+
+    <script>
+        document.addEventListener('DOMContentLoaded', () => {
+            const CITIES = {
+                vladivostok: { name: "Владивосток", lat: 43.1056, lon: 131.8735 },
+                khabarovsk: { name: "Хабаровск", lat: 48.4827, lon: 135.0838 },
+                stockholm: { name: "Стокгольм", lat: 59.3293, lon: 18.0686 },
+                toronto: { name: "Торонто", lat: 43.6532, lon: -79.3832 },
+                krasnoyarsk: { name: "Красноярск", lat: 56.0153, lon: 92.8932 },
+                chelyabinsk: { name: "Челябинск", lat: 55.1644, lon: 61.4368 }
+            };
+            const UPDATE_INTERVAL = 10 * 60 * 1000;
+
+            const tabsScroll = document.getElementById('tabs-scroll');
+            const cardsContainer = document.getElementById('weather-cards-container');
+            const loadingIndicator = document.getElementById('loading-indicator');
+            const lastUpdatedSpan = document.getElementById('last-updated');
+            const refreshButton = document.getElementById('refresh-button');
+            const favoritesContainer = document.getElementById('favorites-container');
+            const favoriteCard = document.getElementById('favorite-city-card');
+            
+            const addCityForm = document.getElementById('add-city-form');
+            const addCityInput = document.getElementById('city-name-input');
+            const addCityButton = document.getElementById('add-city-button');
+            const addCityStatus = document.getElementById('add-city-status');
+
+            let activeCityId = Object.keys(CITIES)[0];
+            let favoriteCityId = localStorage.getItem('favoriteWeatherCity');
+
+            function getWeatherDescription(code) {
+                if (code === 0) return { desc: "Ясное небо", icon: "☀" };
+                if ([1, 2, 3].includes(code)) return { desc: "Облачно", icon: "⛅" };
+                if ([45, 48].includes(code)) return { desc: "Туман", icon: "🌫️" };
+                if (code >= 51 && code <= 55) return { desc: "Морось", icon: "🌧️" };
+                if (code >= 61 && code <= 65) return { desc: "Дождь", icon: "🌧️" };
+                if (code >= 71 && code <= 77) return { desc: "Снег", icon: "❄️" };
+                if (code >= 80 && code <= 82) return { desc: "Ливни", icon: "🌧️" };
+                if ([85, 86].includes(code)) return { desc: "Снегопад", icon: "❄️" };
+                if (code >= 95) return { desc: "Гроза", icon: "⛈️" };
+                return { desc: "Неизвестно", icon: "❓" };
+            }
+
+            function pressureHPaToMmHg(hpa) {
+                return (hpa * 0.75006).toFixed(0);
+            }
+            
+            function formatDayName(dateString) {
+                const date = new Date(dateString);
+                return date.toLocaleDateString('ru-RU', { weekday: 'short' });
+            }
+
+            function renderWeatherCard(data, cardElement) {
+                const { desc, icon } = getWeatherDescription(data.current.weather_code);
+                cardElement.querySelector('.temp').textContent = `${Math.round(data.current.temperature_2m)}°`;
+                cardElement.querySelector('.weather-desc').textContent = `${icon} ${desc}`;
+                cardElement.querySelector('.apparent_temperature').textContent = `${Math.round(data.current.apparent_temperature)}°`;
+                cardElement.querySelector('.relative_humidity_2m').textContent = `${data.current.relative_humidity_2m}%`;
+                cardElement.querySelector('.wind_speed_10m').textContent = `${data.current.wind_speed_10m.toFixed(1)} м/с`;
+                cardElement.querySelector('.surface_pressure').textContent = `${pressureHPaToMmHg(data.current.surface_pressure)} мм рт.ст.`;
+                
+                renderForecast(data.daily, cardElement);
+            }
+            
+            function renderForecast(dailyData, cardElement) {
+                const forecastContainer = cardElement.querySelector('.forecast-container');
+                if (!forecastContainer) return;
+                
+                forecastContainer.innerHTML = '';
+                
+                for (let i = 1; i < dailyData.time.length; i++) {
+                    const { icon } = getWeatherDescription(dailyData.weather_code[i]);
+                    const dayEl = document.createElement('div');
+                    dayEl.className = 'forecast-day';
+                    dayEl.innerHTML = `
+                        <span class="day-name">${formatDayName(dailyData.time[i])}</span>
+                        <span class="day-icon">${icon}</span>
+                        <span class="day-temp-max">${Math.round(dailyData.temperature_2m_max[i])}°</span>
+                        <span class="day-temp-min">${Math.round(dailyData.temperature_2m_min[i])}°</span>
+                    `;
+                    forecastContainer.appendChild(dayEl);
+                }
+            }
+
+            function renderFavoriteCard(data) {
+                const { desc, icon } = getWeatherDescription(data.current.weather_code);
+                favoriteCard.querySelector('.temp').textContent = `${Math.round(data.current.temperature_2m)}°`;
+                favoriteCard.querySelector('.weather-desc').textContent = `${icon} ${desc}`;
+                favoriteCard.querySelector('.apparent_temperature').textContent = `${Math.round(data.current.apparent_temperature)}°`;
+                favoriteCard.querySelector('.relative_humidity_2m').textContent = `${data.current.relative_humidity_2m}%`;
+                favoriteCard.querySelector('.wind_speed_10m').textContent = `${data.current.wind_speed_10m.toFixed(1)} м/с`;
+                favoriteCard.querySelector('.surface_pressure').textContent = `${pressureHPaToMmHg(data.current.surface_pressure)} мм рт.ст.`;
+            }
+
+            async function fetchWeatherData(cityId, isFavorite = false) {
+                if (!cityId || !CITIES[cityId]) return;
+                
+                loadingIndicator.style.display = 'inline';
+                const { lat, lon } = CITIES[cityId];
+                const apiUrl = `https://api.open-meteo.com/v1/forecast?latitude=${lat}&longitude=${lon}&current=temperature_2m,relative_humidity_2m,apparent_temperature,weather_code,wind_speed_10m,surface_pressure&daily=weather_code,temperature_2m_max,temperature_2m_min&forecast_days=7&timezone=auto`;
+
+                try {
+                    const response = await fetch(apiUrl);
+                    if (!response.ok) throw new Error('Network response was not ok');
+                    const data = await response.json();
+
+                    if (isFavorite) {
+                        renderFavoriteCard(data);
+                        favoritesContainer.style.display = 'block';
+                    } else {
+                        const card = cardsContainer.querySelector(`.weather-card[data-city-id="${cityId}"]`);
+                        if(card) renderWeatherCard(data, card);
+                    }
+                    
+                    lastUpdatedSpan.textContent = `Обновлено: ${new Date().toLocaleTimeString()}`;
+                } catch (error) {
+                    console.error('Fetch error:', error);
+                    lastUpdatedSpan.textContent = `Ошибка обновления`;
+                } finally {
+                    loadingIndicator.style.display = 'none';
+                }
+            }
+
+            function fetchAllWeatherData() {
+                Object.keys(CITIES).forEach(cityId => fetchWeatherData(cityId));
+                if (favoriteCityId && CITIES[favoriteCityId]) {
+                    fetchWeatherData(favoriteCityId, true);
+                }
+            }
+
+            function setActiveTab(cityId) {
+                if (!CITIES[cityId]) {
+                    cityId = Object.keys(CITIES)[0];
+                    if (!cityId) return; 
+                }
+                activeCityId = cityId;
+                tabsScroll.querySelectorAll('.tab').forEach(tab => {
+                    tab.classList.toggle('active', tab.dataset.cityId === cityId);
+                });
+                cardsContainer.querySelectorAll('.weather-card').forEach(card => {
+                    card.classList.toggle('active', card.dataset.cityId === cityId);
+                });
+            }
+
+            function updateFavoriteStars() {
+                tabsScroll.querySelectorAll('.favorite-star').forEach(star => {
+                    star.classList.toggle('is-favorite', star.dataset.cityId === favoriteCityId);
+                    star.textContent = star.dataset.cityId === favoriteCityId ? '★' : '☆';
+                });
+            }
+
+            function setFavoriteCity(cityId) {
+                if (favoriteCityId === cityId) {
+                    favoriteCityId = null;
+                    localStorage.removeItem('favoriteWeatherCity');
+                    favoritesContainer.style.display = 'none';
+                } else {
+                    favoriteCityId = cityId;
+                    localStorage.setItem('favoriteWeatherCity', cityId);
+                    fetchWeatherData(cityId, true);
+                }
+                updateFavoriteStars();
+            }
+            
+            function showAddCityStatus(message, isError = true) {
+                addCityStatus.textContent = message;
+                addCityStatus.style.color = isError ? 'var(--danger-color)' : 'var(--text-secondary)';
+                addCityStatus.style.display = 'block';
+            }
+            
+            function createCityUI(cityId, city) {
+                const tab = document.createElement('button');
+                tab.className = 'tab';
+                tab.dataset.cityId = cityId;
+                
+                const star = document.createElement('span');
+                star.className = 'favorite-star';
+                star.dataset.cityId = cityId;
+                star.textContent = '☆';
+                star.addEventListener('click', (e) => {
+                    e.stopPropagation();
+                    setFavoriteCity(cityId);
+                });
+                
+                tab.appendChild(star);
+                tab.appendChild(document.createTextNode(city.name));
+                
+                if (city.isCustom) {
+                    const deleteBtn = document.createElement('span');
+                    deleteBtn.className = 'delete-city';
+                    deleteBtn.innerHTML = '&times;';
+                    deleteBtn.title = 'Удалить город';
+                    deleteBtn.addEventListener('click', (e) => {
+                        e.stopPropagation();
+                        handleDeleteCity(cityId);
+                    });
+                    tab.appendChild(deleteBtn);
+                }
+                
+                tab.addEventListener('click', () => setActiveTab(cityId));
+                tabsScroll.appendChild(tab);
+
+                const card = document.createElement('div');
+                card.className = 'weather-card';
+                card.dataset.cityId = cityId;
+                card.innerHTML = `
+                    <h1 class="temp">--°</h1>
+                    <p class="weather-desc">...</p>
+                    <div class="details">
+                        <div class="detail-item">
+                            <span>Ощущается</span>
+                            <strong class="apparent_temperature">--°</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span>Влажность</span>
+                            <strong class="relative_humidity_2m">--%</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span>Ветер</span>
+                            <strong class="wind_speed_10m">-- м/с</strong>
+                        </div>
+                        <div class="detail-item">
+                            <span>Давление</span>
+                            <strong class="surface_pressure">-- мм рт.ст.</strong>
+                        </div>
+                    </div>
+                    <div class="forecast-container"></div>
+                `;
+                cardsContainer.appendChild(card);
+                
+                return { tab, card };
+            }
+            
+            async function handleAddNewCity(e) {
+                e.preventDefault();
+                const cityName = addCityInput.value.trim();
+                if (!cityName) {
+                    showAddCityStatus('Пожалуйста, введите название города.');
+                    return;
+                }
+                
+                addCityButton.disabled = true;
+                addCityButton.textContent = 'Поиск...';
+                addCityStatus.style.display = 'none';
+
+                try {
+                    const geoUrl = `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(cityName)}&count=1&language=ru`;
+                    const response = await fetch(geoUrl);
+                    if (!response.ok) throw new Error('Ошибка сети при поиске города.');
+                    
+                    const data = await response.json();
+                    if (!data.results || data.results.length === 0) {
+                        showAddCityStatus(`Город "${cityName}" не найден.`);
+                        return;
+                    }
+                    
+                    const cityData = data.results[0];
+                    const cityId = `custom_${cityData.latitude.toFixed(4)}_${cityData.longitude.toFixed(4)}`;
+                    const cityNameDisplay = cityData.country_code === 'RU' ? cityData.name : `${cityData.name}, ${cityData.country_code}`;
+
+                    if (CITIES[cityId]) {
+                        showAddCityStatus(`Город "${cityNameDisplay}" уже в списке.`);
+                        setActiveTab(cityId);
+                        return;
+                    }
+                    
+                    const newCity = {
+                        name: cityNameDisplay,
+                        lat: cityData.latitude,
+                        lon: cityData.longitude,
+                        isCustom: true
+                    };
+                    
+                    CITIES[cityId] = newCity;
+                    
+                    const savedCities = JSON.parse(localStorage.getItem('customCities') || '{}');
+                    savedCities[cityId] = newCity;
+                    localStorage.setItem('customCities', JSON.stringify(savedCities));
+                    
+                    createCityUI(cityId, newCity);
+                    updateFavoriteStars();
+                    fetchWeatherData(cityId);
+                    setActiveTab(cityId);
+                    
+                    addCityInput.value = '';
+                    addCityStatus.style.display = 'none';
+
+                } catch (error) {
+                    console.error('Add city error:', error);
+                    showAddCityStatus('Не удалось добавить город. Попробуйте снова.');
+                } finally {
+                    addCityButton.disabled = false;
+                    addCityButton.textContent = 'Добавить';
+                }
+            }
+            
+            function handleDeleteCity(cityId) {
+                if (!CITIES[cityId] || !CITIES[cityId].isCustom) return;
+                
+                delete CITIES[cityId];
+                
+                const savedCities = JSON.parse(localStorage.getItem('customCities') || '{}');
+                delete savedCities[cityId];
+                localStorage.setItem('customCities', JSON.stringify(savedCities));
+                
+                const tab = tabsScroll.querySelector(`.tab[data-city-id="${cityId}"]`);
+                const card = cardsContainer.querySelector(`.weather-card[data-city-id="${cityId}"]`);
+                if (tab) tab.remove();
+                if (card) card.remove();
+                
+                if (favoriteCityId === cityId) {
+                    setFavoriteCity(null); // Сбросить избранное
+                }
+                
+                if (activeCityId === cityId) {
+                    setActiveTab(Object.keys(CITIES)[0]); // Активировать первую вкладку
+                }
+            }
+
+            function init() {
+                const savedCities = JSON.parse(localStorage.getItem('customCities') || '{}');
+                Object.assign(CITIES, savedCities);
+            
+                Object.keys(CITIES).forEach(cityId => {
+                    createCityUI(cityId, CITIES[cityId]);
+                });
+                
+                if (Object.keys(CITIES).length > 0) {
+                    setActiveTab(activeCityId);
+                }
+                
+                updateFavoriteStars();
+                
+                if (favoriteCityId && CITIES[favoriteCityId]) {
+                    fetchWeatherData(favoriteCityId, true);
+                }
+
+                fetchAllWeatherData();
+                setInterval(fetchAllWeatherData, UPDATE_INTERVAL);
+                
+                refreshButton.addEventListener('click', fetchAllWeatherData);
+                addCityForm.addEventListener('submit', handleAddNewCity);
+            }
+
+            init();
+        });
+    </script>
+</body>
+</html>
+
